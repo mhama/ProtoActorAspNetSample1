@@ -6,6 +6,8 @@ public class ChatHub : Hub
 {
     ActorSystem _system;
     private readonly IHubContext<ChatHub> _chatHubContext;
+    CancellationTokenSource cts;
+
     PID UserActorPid
     {
         get => Context.Items["user-pid"] as PID;
@@ -30,6 +32,13 @@ public class ChatHub : Hub
         return Task.CompletedTask;
     }
 
+    public override Task OnDisconnectedAsync(Exception? exception)
+    {
+        cts.Cancel();
+        cts.Dispose();
+        return Task.CompletedTask;
+    }
+
     // Actorにメッセージを飛ばす（非ストリーミング）
     public async Task SendMessage(string user, string message) 
     {
@@ -38,11 +47,12 @@ public class ChatHub : Hub
 
     // Actorにメッセージを飛ばす（ストリーミング）
     // ストリーミングのほうがコネクションを維持してHubインスタンスも維持するので
-    // メモリ負荷がたぶん低い
+    // メモリ負荷が低い
     public async Task SendMessageStream(ChannelReader<string> stream)
     {
         Console.WriteLine("SendMessageStream received.");
-        while (await stream.WaitToReadAsync())
+        cts = new CancellationTokenSource();
+        while (await stream.WaitToReadAsync(cts.Token))
         {
             while (stream.TryRead(out string message))
             {
