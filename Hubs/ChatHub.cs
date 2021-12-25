@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using Microsoft.AspNetCore.SignalR;
 using Proto;
 
@@ -29,10 +30,26 @@ public class ChatHub : Hub
         return Task.CompletedTask;
     }
 
-    // Actorにメッセージを飛ばす
+    // Actorにメッセージを飛ばす（非ストリーミング）
     public async Task SendMessage(string user, string message) 
     {
         _system.Root.Send(UserActorPid, new ChatMessage(user, message));
+    }
+
+    // Actorにメッセージを飛ばす（ストリーミング）
+    // ストリーミングのほうがコネクションを維持してHubインスタンスも維持するので
+    // メモリ負荷がたぶん低い
+    public async Task SendMessageStream(ChannelReader<string> stream)
+    {
+        Console.WriteLine("SendMessageStream received.");
+        while (await stream.WaitToReadAsync())
+        {
+            while (stream.TryRead(out string message))
+            {
+                _system.Root.Send(UserActorPid, new ChatMessage("streaming", message));
+                Console.WriteLine(message);
+            }
+        }
     }
 
     // ユーザーにメッセージを返すメソッド。Actorに与えて使ってもらう。

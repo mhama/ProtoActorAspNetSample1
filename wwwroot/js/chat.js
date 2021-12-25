@@ -2,6 +2,9 @@
 
 var connection = new signalR.HubConnectionBuilder().withUrl("/chatHub").build();
 
+const subject = new signalR.Subject();
+
+
 //Disable send button until connection is established
 document.getElementById("sendButton").disabled = true;
 
@@ -16,6 +19,9 @@ connection.on("ReceiveMessage", function (user, message) {
 
 connection.start().then(function () {
     document.getElementById("sendButton").disabled = false;
+
+    // connect stream
+    connection.send("SendMessageStream", subject);
 }).catch(function (err) {
     return console.error(err.toString());
 });
@@ -23,8 +29,13 @@ connection.start().then(function () {
 document.getElementById("sendButton").addEventListener("click", function (event) {
     var user = document.getElementById("userInput").value;
     var message = document.getElementById("messageInput").value;
+    /* non-streaming
     connection.invoke("SendMessage", user, message).catch(function (err) {
         return console.error(err.toString());
     });
+    */
+    console.log("send stream. message:" + message);
+    subject.next("streaming: " + user + ": " + message);
+
     event.preventDefault();
 });
