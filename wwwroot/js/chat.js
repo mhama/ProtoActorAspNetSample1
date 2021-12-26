@@ -1,30 +1,44 @@
 "use strict";
 
-var connection = new signalR.HubConnectionBuilder().withUrl("/chatHub").build();
+var connection;
+var subject;
 
-const subject = new signalR.Subject();
-
-
-//Disable send button until connection is established
-document.getElementById("sendButton").disabled = true;
-
-connection.on("ReceiveMessage", function (user, message) {
+function onReceiveMessage(user, message) {
     var li = document.createElement("li");
     document.getElementById("messagesList").appendChild(li);
     // We can assign user-supplied strings to an element's textContent because it
     // is not interpreted as markup. If you're assigning in any other way, you 
     // should be aware of possible script injection concerns.
     li.textContent = `${user} says ${message}`;
-});
+}
 
-connection.start().then(function () {
+function onClose(e) {
+    createConnection();
+}
+
+function onConnectionStart() {
     document.getElementById("sendButton").disabled = false;
 
     // connect stream
+    subject = new signalR.Subject();
     connection.send("SendMessageStream", subject);
-}).catch(function (err) {
-    return console.error(err.toString());
-});
+}
+
+function createConnection() {
+    connection = new signalR.HubConnectionBuilder().withUrl("/chatHub").build();
+    connection.on("ReceiveMessage", onReceiveMessage);
+
+    connection.onclose(onClose);
+    
+    connection.start().then(onConnectionStart).catch(function (err) {
+        return console.error(err.toString());
+    });
+}
+
+createConnection();
+
+//Disable send button until connection is established
+document.getElementById("sendButton").disabled = true;
 
 document.getElementById("sendButton").addEventListener("click", function (event) {
     var user = document.getElementById("userInput").value;
