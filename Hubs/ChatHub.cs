@@ -34,8 +34,7 @@ public class ChatHub : Hub
 
     public override Task OnDisconnectedAsync(Exception? exception)
     {
-        cts.Cancel();
-        cts.Dispose();
+        cts?.Cancel();
         return Task.CompletedTask;
     }
 
@@ -45,6 +44,8 @@ public class ChatHub : Hub
         _system.Root.Send(UserActorPid, new ChatMessage(user, message));
     }
 
+    const int idleConnectionTimeoutMs = 30000;
+
     // Actorにメッセージを飛ばす（ストリーミング）
     // ストリーミングのほうがコネクションを維持してHubインスタンスも維持するので
     // メモリ負荷が低い
@@ -52,13 +53,28 @@ public class ChatHub : Hub
     {
         Console.WriteLine("SendMessageStream received.");
         cts = new CancellationTokenSource();
-        while (await stream.WaitToReadAsync(cts.Token))
-        {
-            while (stream.TryRead(out string message))
+        cts.CancelAfter(idleConnectionTimeoutMs);
+        try {
+            // ストリーミングメッセージがあるまで待ち、受け取る。
+            // タイムアウト時間がくるとキャンセルしてコネクションを閉じる。
+            while (await stream.WaitToReadAsync(cts.Token))
             {
-                _system.Root.Send(UserActorPid, new ChatMessage("streaming", message));
-                Console.WriteLine(message);
+                while (stream.TryRead(out string message))
+                {
+                    _system.Root.Send(UserActorPid, new ChatMessage("streaming", message));
+                    Console.WriteLine(message);
+                }
+                cts.CancelAfter(idleConnectionTimeoutMs);
             }
+        }
+        catch(OperationCanceledException e)
+        {
+            Console.WriteLine("connection canceled. reason:" + e.Message);
+            Context.Abort();
+        }
+        finally
+        {
+            cts.Dispose();
         }
     }
 
