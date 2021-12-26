@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.StaticFiles;
 using Proto;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -40,5 +41,16 @@ app.MapHub<ChatHub>("/chathub");
 //var system = new ActorSystem();
 //var props = Props.FromProducer(() => new ChatActor());
 //system.Root.Spawn(props);
+
+
+// Set up custom content types - associating file extension to MIME type
+
+var provider = new FileExtensionContentTypeProvider();
+provider.Mappings[".unityweb"] = "application/octet-stream";
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = provider
+});
 
 app.Run();
