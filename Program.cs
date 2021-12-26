@@ -8,6 +8,17 @@ builder.Services.AddRazorPages();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<ActorSystem>(); // Hubインスタンス生成時用のDI設定
 
+// CORS許可設定
+var  MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+builder.Services.AddCors(options =>
+{
+  options.AddPolicy(name: MyAllowSpecificOrigins,
+  builder =>
+  {
+    builder.WithOrigins("https://localhost:7030");
+  });
+});
+
 /*
 builder.Services.AddResponseCompression(opts => {
     opts.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
@@ -16,6 +27,9 @@ builder.Services.AddResponseCompression(opts => {
 */
 
 var app = builder.Build();
+
+// CORS許可設定
+app.UseCors(MyAllowSpecificOrigins);
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
