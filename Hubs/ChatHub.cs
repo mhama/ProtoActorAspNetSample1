@@ -80,7 +80,7 @@ public class ChatHub : Hub
 
     // ユーザーにメッセージを返すメソッド。Actorに与えて使ってもらう。
     public async Task SendMessageFunc(string connectionId, string user, string message) {
-        await Task.Delay(100);
+        //await Task.Delay(100);
         Console.WriteLine($"Send message: {user}, {message}");
         await _chatHubContext.Clients.Client(connectionId).SendAsync("ReceiveMessage", user, message);
         //await _chatHubContext.Clients.All.SendAsync("ReceiveMessage", user, message);
