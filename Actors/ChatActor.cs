@@ -10,9 +10,12 @@ public class ChatActor : IActor
     private string _connectionId; // SignalR送信用コネクションID
     SendMessageFuncType _sendMessageFunc;
 
-    public ChatActor(string connectionId, SendMessageFuncType sendMessageFunc) {
+    PID _aggregatorPID;
+
+    public ChatActor(string connectionId, SendMessageFuncType sendMessageFunc, PID aggregatorPID) {
         _connectionId = connectionId;
         _sendMessageFunc = sendMessageFunc;
+        _aggregatorPID = aggregatorPID;
     }
     
     public Task ReceiveAsync(IContext context)
@@ -20,27 +23,54 @@ public class ChatActor : IActor
         Console.WriteLine("ChatActor: message" + context.Message);
         switch(context.Message) {
         case ChatMessage msg:
-            _sendMessageFunc?.Invoke(_connectionId, msg.user, msg.message + " by Proto.Actor");
+            context.Send(_aggregatorPID, new ChatAggregateRequest(context.Self, msg.user, msg.message));
+            break;
+        case ChatAggregatedResult msg:
+            _sendMessageFunc?.Invoke(_connectionId, "aggregated", msg.bulkMessage);
             break;
         }
         return Task.CompletedTask;
     }
 }
 
-/*
-record ChatListMessage(string user, string message);
 
-public class ChatListActor : IActor
+
+public class ChatAggregatorActorPID {
+    public PID pid;
+}
+
+record ChatAggregateRequest(PID sender, string user, string message);
+
+record ChatAggregatedResult(string bulkMessage);
+
+//
+// actor to aggregate messages of users
+//
+public class ChatMessageAggregatorActor : IActor
 {
+    Dictionary<string, string> messagesDic = new Dictionary<string, string>();
+
+    public ChatMessageAggregatorActor() {
+        Console.WriteLine("ChatMessageAggregatorActor created.");
+    }
+
     public Task ReceiveAsync(IContext context)
     {
-        Console.WriteLine("ChatListActor: message" + context.Message);
-        switch(context.Message) {
-        case ChatListMessage msg:
-            // signalRのhubに投げる？
-            break;
+        try {
+            Console.WriteLine("ChatListActor: message" + context.Message);
+            switch(context.Message) {
+            case ChatAggregateRequest msg:
+                messagesDic[msg.user] = msg.message;
+                var allMessageText = string.Join("\n", messagesDic.Select(pair => $"{pair.Key} : {pair.Value}"));
+                //Console.WriteLine("allMessageText:" + allMessageText);
+                context.Send(msg.sender, new ChatAggregatedResult(allMessageText));
+                break;
+            }
+        }
+        catch(Exception e) {
+            Console.WriteLine("Exception: " + e + e.StackTrace);
+            throw e;
         }
         return Task.CompletedTask;
     }
 }
-*/

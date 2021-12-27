@@ -1,12 +1,24 @@
 using System.Threading.Channels;
 using Microsoft.AspNetCore.SignalR;
 using Proto;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+[Serializable]
+public class ChatMessagePayload {
+    [JsonPropertyName("user")]
+    public string User { get; set; }
+    [JsonPropertyName("message")]
+    public string Message { get; set; }
+}
 
 public class ChatHub : Hub
 {
     ActorSystem _system;
     private readonly IHubContext<ChatHub> _chatHubContext;
     CancellationTokenSource cts;
+
+    ChatAggregatorActorPID _aggregatorPid;
 
     PID UserActorPid
     {
@@ -15,9 +27,10 @@ public class ChatHub : Hub
     }
 
     // Hubインスタンスは呼び出しごとに作り直される。（マジ？）
-    public ChatHub(ActorSystem system, IHubContext<ChatHub> chatHubContext) {
+    public ChatHub(ActorSystem system, IHubContext<ChatHub> chatHubContext, ChatAggregatorActorPID aggregatorPid) {
         _system = system;
         _chatHubContext = chatHubContext;
+        _aggregatorPid = aggregatorPid;
         Console.WriteLine("ChatHub created.");
     }
 
@@ -27,7 +40,7 @@ public class ChatHub : Hub
         Console.WriteLine($"Client {Context.ConnectionId} connected");
         var connectionId = Context.ConnectionId;
         UserActorPid = _system.Root.Spawn(
-            Props.FromProducer(() => new ChatActor(connectionId, SendMessageFunc))
+            Props.FromProducer(() => new ChatActor(connectionId, SendMessageFunc, _aggregatorPid.pid))
         );
         return Task.CompletedTask;
     }
@@ -61,8 +74,12 @@ public class ChatHub : Hub
             {
                 while (stream.TryRead(out string message))
                 {
-                    _system.Root.Send(UserActorPid, new ChatMessage("streaming", message));
-                    Console.WriteLine(message);
+                    //Console.WriteLine("SendMessageStream received: " + message);
+                    var payload = JsonSerializer.Deserialize<ChatMessagePayload>(message);
+                    if (string.IsNullOrEmpty(payload?.User) || string.IsNullOrEmpty(payload?.Message)) {
+                        continue;
+                    }
+                    _system.Root.Send(UserActorPid, new ChatMessage(payload.User, payload.Message));
                 }
                 cts.CancelAfter(idleConnectionTimeoutMs);
             }

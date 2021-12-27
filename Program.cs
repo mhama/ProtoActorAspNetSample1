@@ -1,12 +1,23 @@
 using Microsoft.AspNetCore.StaticFiles;
 using Proto;
 
+// Actor System およびAggregate Actor初期化
+var system = new ActorSystem();
+var props = Props.FromProducer(() => new ChatMessageAggregatorActor());
+var aggregatorPid = system.Root.Spawn(props);
+
+// PIDはDI時に区別がつかないのでクラスにラップする
+var wrappedAggregatorPid = new ChatAggregatorActorPID() {
+    pid = aggregatorPid
+};
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddSignalR();
-builder.Services.AddSingleton<ActorSystem>(); // Hubインスタンス生成時用のDI設定
+builder.Services.AddSingleton<ActorSystem>(system); // Hubインスタンス生成時用のDI設定
+builder.Services.AddSingleton<ChatAggregatorActorPID>(wrappedAggregatorPid); // Hubインスタンス生成時用のDI設定
 
 // CORS許可設定
 var  MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
@@ -50,12 +61,6 @@ app.MapRazorPages();
 
 //app.UseResponseCompression();
 app.MapHub<ChatHub>("/chathub");
-
-// Setup Proto.Actor 
-//var system = new ActorSystem();
-//var props = Props.FromProducer(() => new ChatActor());
-//system.Root.Spawn(props);
-
 
 // Set up custom content types - associating file extension to MIME type
 
