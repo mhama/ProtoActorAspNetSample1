@@ -86,8 +86,8 @@ public class ChatHub : Hub
         }
         catch(OperationCanceledException e)
         {
-            Console.WriteLine("connection canceled. reason:" + e.Message);
-            Context.Abort();
+            Console.WriteLine("stream terminated. reason:" + e.Message);
+            //Context.Abort();
         }
         finally
         {
