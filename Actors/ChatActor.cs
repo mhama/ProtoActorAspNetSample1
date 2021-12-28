@@ -20,13 +20,16 @@ public class ChatActor : IActor
     
     public Task ReceiveAsync(IContext context)
     {
-        Console.WriteLine("ChatActor: message" + context.Message);
         switch(context.Message) {
         case ChatMessage msg:
+            Console.WriteLine("ChatActor: received message" + context.Message);
             context.Send(_aggregatorPID, new ChatAggregateRequest(context.Self, msg.user, msg.message));
             break;
         case ChatAggregatedResult msg:
             _sendMessageFunc?.Invoke(_connectionId, "aggregated", msg.bulkMessage);
+            break;
+       default:
+            Console.WriteLine("ChatActor: other message:" + context.Message);
             break;
         }
         return Task.CompletedTask;
