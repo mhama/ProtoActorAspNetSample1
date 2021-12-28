@@ -2,9 +2,11 @@
 
 Proto.Actor & ASP.Net & SignalR(WebSocket streaming) sample
 
+Sample chat app that aggregates all user's messages.
+
 # Prerequisites
 
-## .Net SDK
+## install .Net SDK
 
 Please see: https://docs.microsoft.com/ja-jp/dotnet/core/install/
 
@@ -28,9 +30,11 @@ sudo apt-get update
 sudo apt-get install -y dotnet-sdk-6.0
 ```
 
-# How to run
 
-## for develpopment
+
+# How to run the server
+
+## for development
 
 ```shell
 dotnet watch
@@ -41,3 +45,9 @@ dotnet watch
 ```shell
 dotnet run --configuration Release
 ```
+
+# How to run the client
+
+open URL with web browser:
+
+`https://(Server IP):7030/Chat`
