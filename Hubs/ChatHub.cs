@@ -18,7 +18,7 @@ public class ChatHub : Hub
     private readonly IHubContext<ChatHub> _chatHubContext;
     CancellationTokenSource cts;
 
-    ChatAggregatorActorPID _aggregatorPid;
+    ChatAggregatorActorPIDSelector _aggregatorPidSelector;
 
     PID UserActorPid
     {
@@ -27,10 +27,10 @@ public class ChatHub : Hub
     }
 
     // Hubインスタンスは呼び出しごとに作り直される。（マジ？）
-    public ChatHub(ActorSystem system, IHubContext<ChatHub> chatHubContext, ChatAggregatorActorPID aggregatorPid) {
+    public ChatHub(ActorSystem system, IHubContext<ChatHub> chatHubContext, ChatAggregatorActorPIDSelector aggregatorPidSelector) {
         _system = system;
         _chatHubContext = chatHubContext;
-        _aggregatorPid = aggregatorPid;
+        _aggregatorPidSelector = aggregatorPidSelector;
         Console.WriteLine("ChatHub created.");
     }
 
@@ -40,7 +40,7 @@ public class ChatHub : Hub
         Console.WriteLine($"Client {Context.ConnectionId} connected");
         var connectionId = Context.ConnectionId;
         UserActorPid = _system.Root.Spawn(
-            Props.FromProducer(() => new ChatActor(connectionId, SendMessageFunc, _aggregatorPid.pid))
+            Props.FromProducer(() => new ChatActor(connectionId, SendMessageFunc, _aggregatorPidSelector.NextPid()))
         );
         return Task.CompletedTask;
     }

@@ -1,14 +1,30 @@
 using Microsoft.AspNetCore.StaticFiles;
 using Proto;
+using Proto.Router;
+using System.Linq;
 
 // Actor System およびAggregate Actor初期化
 var system = new ActorSystem();
-var props = Props.FromProducer(() => new ChatMessageAggregatorActor());
-var aggregatorPid = system.Root.Spawn(props);
+var aggregatorProps = Props.FromProducer(() => new ChatMessageAggregatorActor());
 
-// PIDはDI時に区別がつかないのでクラスにラップする
-var wrappedAggregatorPid = new ChatAggregatorActorPID() {
-    pid = aggregatorPid
+// Aggregatorは複数作成し、各ClientはどれかのAggregatorに送る
+int aggregatorsCount = 3;
+var aggregators = Enumerable.Range(0, aggregatorsCount).Select((_) => system.Root.Spawn(aggregatorProps)).ToList();
+
+//var aggregatorPid = system.Root.Spawn(aggregatorProps);
+
+/* routerの場合
+var routerContext = new RootContext(system);
+//var routerProps = routerContext.NewRandomPool(aggregatorProps, 2);
+var routerProps = routerContext.NewConsistentHashPool(aggregatorProps, 2, null, 10);
+var routerPid = routerContext.Spawn(routerProps);
+*/
+
+// AggregatorのPIDを供給する
+var wrappedAggregatorPidSelector = new ChatAggregatorActorPIDSelector() {
+    //pid = aggregatorPid
+    //pid = routerPid
+    aggregators = aggregators
 };
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,7 +33,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<ActorSystem>(system); // Hubインスタンス生成時用のDI設定
-builder.Services.AddSingleton<ChatAggregatorActorPID>(wrappedAggregatorPid); // Hubインスタンス生成時用のDI設定
+builder.Services.AddSingleton<ChatAggregatorActorPIDSelector>(wrappedAggregatorPidSelector); // Hubインスタンス生成時用のDI設定
 
 // CORS許可設定
 var  MyAllowSpecificOrigins = "_myAllowSpecificOrigins";

@@ -38,8 +38,20 @@ public class ChatActor : IActor
 
 
 
-public class ChatAggregatorActorPID {
-    public PID pid;
+public class ChatAggregatorActorPIDSelector {
+    //public PID pid;
+
+    public List<PID> aggregators;
+
+    Random random = new Random();
+
+    public ChatAggregatorActorPIDSelector() {
+    }
+
+    public PID NextPid() {
+        int index = random.Next(0, aggregators.Count);
+        return aggregators[index];
+    }
 }
 
 record ChatAggregateRequest(PID sender, string user, string message);
@@ -51,16 +63,19 @@ record ChatAggregatedResult(string bulkMessage);
 //
 public class ChatMessageAggregatorActor : IActor
 {
+    static int count = 0;
+    int index;
     Dictionary<string, string> messagesDic = new Dictionary<string, string>();
 
     public ChatMessageAggregatorActor() {
-        Console.WriteLine("ChatMessageAggregatorActor created.");
+        index = count++;
+        Console.WriteLine($"ChatMessageAggregatorActor {index} created.");
     }
 
     public Task ReceiveAsync(IContext context)
     {
         try {
-            Console.WriteLine("ChatListActor: message" + context.Message);
+            Console.WriteLine($"ChatMessageAggregatorActor {index} : message" + context.Message);
             switch(context.Message) {
             case ChatAggregateRequest msg:
                 messagesDic[msg.user] = msg.message;
