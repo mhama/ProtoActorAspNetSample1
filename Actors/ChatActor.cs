@@ -1,5 +1,6 @@
 
 using Proto;
+using System;
 
 record ChatMessage(string user, string message);
 
@@ -67,9 +68,19 @@ public class ChatMessageAggregatorActor : IActor
     int index;
     Dictionary<string, string> messagesDic = new Dictionary<string, string>();
 
+    string dummyMessage = "";
+
+    string currentFrameMessage = "";
+    DateTime lastAggregatedTime = DateTime.Now;
+
     public ChatMessageAggregatorActor() {
         index = count++;
         Console.WriteLine($"ChatMessageAggregatorActor {index} created.");
+
+        // create arbitrary size dummy string
+        for(int i=0 ; i<400 ; i++) {
+            dummyMessage += "DummyDummy.";
+        }
     }
 
     public Task ReceiveAsync(IContext context)
@@ -79,9 +90,13 @@ public class ChatMessageAggregatorActor : IActor
             switch(context.Message) {
             case ChatAggregateRequest msg:
                 messagesDic[msg.user] = msg.message;
-                var allMessageText = string.Join("\n", messagesDic.Select(pair => $"{pair.Key} : {pair.Value}"));
+                if ((DateTime.Now - lastAggregatedTime).TotalMilliseconds > 100.0) {
+                    Console.WriteLine("aggregated.");
+                    lastAggregatedTime = DateTime.Now;
+                            aggregateCurrentFrameMessage();
+                }
                 //Console.WriteLine("allMessageText:" + allMessageText);
-                context.Send(msg.sender, new ChatAggregatedResult(allMessageText));
+                context.Send(msg.sender, new ChatAggregatedResult(currentFrameMessage));
                 break;
             }
         }
@@ -90,5 +105,9 @@ public class ChatMessageAggregatorActor : IActor
             throw e;
         }
         return Task.CompletedTask;
+    }
+
+    void aggregateCurrentFrameMessage() {
+        currentFrameMessage = string.Join("\n", messagesDic.Select(pair => $"{pair.Key} : {pair.Value}"));
     }
 }
