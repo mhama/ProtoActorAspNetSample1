@@ -87,6 +87,7 @@ public class ChatHub : Hub
         catch(OperationCanceledException e)
         {
             Console.WriteLine("stream terminated. reason:" + e.Message);
+            _system.Root.Stop(UserActorPid);
             Context.Abort();
         }
         finally
